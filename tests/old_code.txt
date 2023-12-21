@@ -1,0 +1,112 @@
+#!/usr/bin/env python
+#
+# punchcardgen.py
+#
+# Copyright (C) 2011: Michael Hamilton
+# The code is GPL 3.0(GNU General Public License) ( http://www.gnu.org/copyleft/gpl.html )
+#
+
+from PIL import Image
+import sys
+
+CARD_COLUMNS = 80
+CARD_ROWS = 12
+
+# found measurements at http://www.quadibloc.com/comp/cardint.htm
+CARD_WIDTH = 7.0 + 3.0/8.0  # Inches
+CARD_HEIGHT = 3.25  # Inches
+CARD_COL_WIDTH = 0.087  # Inches
+CARD_HOLE_WIDTH = 0.055  # Inches IBM, 0.056 Control Data
+CARD_ROW_HEIGHT = 0.25  # Inches
+CARD_HOLE_HEIGHT = 0.125  # Inches
+CARD_TOPBOT_MARGIN = 3.0/16.0  # Inches at top and bottom
+CARD_SIDE_MARGIN = 0.2235  # Inches on each side
+
+DARK = (0, 0, 0)
+BRIGHT = (255, 255, 255)  # pixel brightness value (i.e. (R+G+B)/3)
+REDUCE_IN_SIZE = 8
+
+IBM_MODEL_029_KEYPUNCH = """
+    /&-0123456789ABCDEFGHIJKLMNOPQR/STUVWXYZ:#@'="`.<(+|!$*);^~,%_>? |
+12 / O           OOOOOOOOO                        OOOOOO             |
+11|   O                   OOOOOOOOO                     OOOOOO       |
+ 0|    O                           OOOOOOOOO                  OOOOOO |
+ 1|     O        O        O        O                                 |
+ 2|      O        O        O        O       O     O     O     O      |
+ 3|       O        O        O        O       O     O     O     O     |
+ 4|        O        O        O        O       O     O     O     O    |
+ 5|         O        O        O        O       O     O     O     O   |
+ 6|          O        O        O        O       O     O     O     O  |
+ 7|           O        O        O        O       O     O     O     O |
+ 8|            O        O        O        O OOOOOOOOOOOOOOOOOOOOOOOO |
+ 9|             O        O        O        O                         | 
+  |__________________________________________________________________|"""
+
+translate = None
+if translate == None:
+    translate = {}
+    # Turn the ASCII art sideways and build a hash look up for
+    # column values, for example:
+    #   A:(O, , ,O, , , , , , , , )
+    #   B:(O, , , ,O, , , , , , , )
+    #   C:(O, , , , ,O, , , , , , )
+    rows = IBM_MODEL_029_KEYPUNCH[1:].split('\n')
+    rotated = [[r[i] for r in rows[0:13]] for i in range(5, len(rows[0]) - 1)]
+    for v in rotated:
+        translate[v[0]] = tuple(v[1:])
+
+if __name__ == '__main__':
+
+    scale = 1000
+    margin = 200
+    card_x_pixels = int(CARD_WIDTH * scale)
+    card_y_pixels = int(CARD_HEIGHT * scale)
+
+    img_size = (2 * margin + card_x_pixels, 2 * margin + card_y_pixels)
+
+    side_margin_pixels = int(CARD_SIDE_MARGIN * scale)
+    col_width_pixels = int(CARD_COL_WIDTH * scale)
+
+    top_bot_margin = int(CARD_TOPBOT_MARGIN * scale)
+    row_height_pixels = int(CARD_ROW_HEIGHT * scale)
+
+    hole_width = int(CARD_HOLE_WIDTH * scale)
+    hole_height = int(CARD_HOLE_HEIGHT * scale)
+
+    card_area = (margin, margin, margin +
+                 card_x_pixels, margin + card_y_pixels)
+
+    proto_img = Image.new('RGB', img_size, BRIGHT)
+    proto_pix = proto_img.load()
+    proto_img.paste(DARK, card_area)
+
+    # Remove the top left corner (don't know the standard for this - guess)
+    i = 0
+    for x in range(margin, margin + side_margin_pixels):
+        for y in range(margin, margin + top_bot_margin + hole_height - i):
+            proto_pix[x, y] = BRIGHT
+        i += 2
+
+    card_number = 1
+    for line in sys.stdin:
+        img = proto_img.copy()
+        x = margin + side_margin_pixels
+        for char in line:
+            if char in translate:
+                values = translate[char]
+                y = margin + top_bot_margin
+                for row in range(0, CARD_ROWS):
+                    if values[row] == 'O':
+                        img.paste(
+                            BRIGHT, (x, y, x + hole_width, y + hole_height))
+                    y += row_height_pixels
+            x += col_width_pixels
+            if x > margin + card_x_pixels:
+                break
+        img = img.resize(
+            (img_size[0]//REDUCE_IN_SIZE, img_size[1]//REDUCE_IN_SIZE))
+        filename = "%010.10d.jpg" % (card_number)
+        print(filename, line)
+        img.save(filename)
+        card_number += 1
+
