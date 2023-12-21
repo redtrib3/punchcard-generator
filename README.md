@@ -23,8 +23,12 @@ punched card is [this tool](https://github.com/digitaltrails/punchedcardreader) 
 
  [IBM 029 Punched cards (1964)](https://www.ibm.com/ibm/history/exhibits/vintage/vintage_4506VV4002.html)
 
+# Sample Image
+
+<img src=https://raw.githubusercontent.com/redtrib3/punchcard-generator/main/sample_card.jpg />
 
 # References:
 * [Blog referencing the code](http://codeincluded.blogspot.com/2012/08/punch-card-reader-faq.html)
-    
 
+
+<h5>Have any improvement in mind or did you find a bug? please submit a pull request or create an issue.</h5>
