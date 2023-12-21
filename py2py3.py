@@ -11,13 +11,12 @@ import sys
 
 
 class Convert:
-
     def __init__(self, filepath):
         self.file = filepath
-        
+
         if not self.file:
             self.print_help()
-            
+
         with open(filepath, 'r') as pyfile:
             self.pycode = fix_code(pyfile.read())
 
@@ -27,6 +26,8 @@ class Convert:
 
     def raise_deadlib_err(self):
         # to be implemented
+        pass
+
 
     def to_py3(self):
         println = r'print\s(.*)'
