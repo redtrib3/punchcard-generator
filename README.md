@@ -25,6 +25,6 @@ punched card is [this tool](https://github.com/digitaltrails/punchedcardreader) 
 
 
 # References:
-    * [Blog referencing the code] (http://codeincluded.blogspot.com/2012/08/punch-card-reader-faq.html)
+* [Blog referencing the code](http://codeincluded.blogspot.com/2012/08/punch-card-reader-faq.html)
     
 
