@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+#
+# punchcard_gen.py
+#
+# IBM MODEL 029 Punch card reader
+# Python2 Code Originally written by Michael Hamilton (2011- GPL License)
+# Converted to Python3 and refactored as OOP 
+
+
+from PIL import Image
+from time import time
+import sys
+
+
+IBM_MODEL_029_KEYPUNCH = """
+    /&-0123456789ABCDEFGHIJKLMNOPQR/STUVWXYZ:#@'="`.<(+|!$*);^~,%_>? |
+12 / O           OOOOOOOOO                        OOOOOO             |
+11|   O                   OOOOOOOOO                     OOOOOO       |
+ 0|    O                           OOOOOOOOO                  OOOOOO |
+ 1|     O        O        O        O                                 |
+ 2|      O        O        O        O       O     O     O     O      |
+ 3|       O        O        O        O       O     O     O     O     |
+ 4|        O        O        O        O       O     O     O     O    |
+ 5|         O        O        O        O       O     O     O     O   |
+ 6|          O        O        O        O       O     O     O     O  |
+ 7|           O        O        O        O       O     O     O     O |
+ 8|            O        O        O        O OOOOOOOOOOOOOOOOOOOOOOOO |
+ 9|             O        O        O        O                         |
+  |__________________________________________________________________|"""
+
+class PunchCardGenerator:
+    def __init__(self):
+        self.initialize_constants()
+        self.initialize_translation()
+
+    def initialize_constants(self):
+
+        # card dimensions, try changing, probably won't work
+        self.CARD_COLUMNS = 80
+        self.CARD_ROWS = 12
+
+        self.CARD_WIDTH = 7.0 + 3.0 / 8.0  # Inches
+        self.CARD_HEIGHT = 3.25  # Inches
+        self.CARD_COL_WIDTH = 0.087  # Inches
+        self.CARD_HOLE_WIDTH = 0.055  # Inches IBM, 0.056 Control Data
+        self.CARD_ROW_HEIGHT = 0.25  # Inches
+        self.CARD_HOLE_HEIGHT = 0.125  # Inches
+        self.CARD_TOPBOT_MARGIN = 3.0 / 16.0  # Inches at top and bottom
+        self.CARD_SIDE_MARGIN = 0.2235  # Inches on each side
+
+        self.DARK = (0, 0, 0)
+        self.BRIGHT = (255, 255, 255)
+        self.REDUCE_IN_SIZE = 8
+
+    def initialize_translation(self):
+        global IBM_MODEL_029_KEYPUNCH
+
+        self.translate = None
+        if self.translate == None:
+            self.translate = {}
+ 
+            rows = IBM_MODEL_029_KEYPUNCH[1:].split('\n')
+            rotated = [[r[i] for r in rows[0:13]]
+                       for i in range(5, len(rows[0]) - 1)]
+            for v in rotated:
+                self.translate[v[0]] = tuple(v[1:])
+
+    def create_proto_image(self):
+
+        scale = 1000
+        self.margin = 200
+        self.card_x_pixels = int(self.CARD_WIDTH * scale)
+        self.card_y_pixels = int(self.CARD_HEIGHT * scale)
+        self.img_size = (2 * self.margin + self.card_x_pixels,
+                         2 * self.margin + self.card_y_pixels)
+
+        self.side_margin_pixels = int(self.CARD_SIDE_MARGIN * scale)
+        self.col_width_pixels = int(self.CARD_COL_WIDTH * scale)
+
+        self.top_bot_margin = int(self.CARD_TOPBOT_MARGIN * scale)
+        self.row_height_pixels = int(self.CARD_ROW_HEIGHT * scale)
+
+        self.hole_width = int(self.CARD_HOLE_WIDTH * scale)
+        self.hole_height = int(self.CARD_HOLE_HEIGHT * scale)
+
+        card_area = (self.margin, self.margin,
+                     self.margin + self.card_x_pixels, self.margin + self.card_y_pixels)
+
+        proto_img = Image.new('RGB', self.img_size, self.BRIGHT)
+        proto_pix = proto_img.load()
+        proto_img.paste(self.DARK, card_area)
+
+        # Remove the top left corner
+        i = 0
+        for x in range(self.margin, self.margin + self.side_margin_pixels):
+            for y in range(self.margin, self.margin + self.top_bot_margin + self.hole_height - i):
+                proto_pix[x, y] = self.DARK
+            i += 2
+
+        return proto_img
+
+    def process_input(self, input_line):
+        img = self.create_proto_image()
+        x = self.margin + self.side_margin_pixels
+
+        for char in input_line:
+            if char in self.translate:
+                values = self.translate[char]
+                y = self.margin + self.top_bot_margin
+                for row in range(0, self.CARD_ROWS):
+                    if values[row] == 'O':
+                        img.paste(self.BRIGHT, (x, y, x +
+                                  self.hole_width, y + self.hole_height))
+                    y += self.row_height_pixels
+            x += self.col_width_pixels
+            if x > self.margin + self.card_x_pixels:
+                break
+
+        # Image resizing and saving
+        img = img.resize(
+            (self.img_size[0] // self.REDUCE_IN_SIZE, self.img_size[1] // self.REDUCE_IN_SIZE))
+        filename = 'PUNCH_' + str(int(time())) + '.jpg'
+        print(f"[+] Saved as {filename}")
+        img.save(filename)
+
+
+if __name__ == '__main__':
+    punch_card = PunchCardGenerator()
+    msg = "[SUPPORTS UPPERCASE CHARS ONLY]\nEnter \'EOF\' or press CTRL/COMMAND+C to exit \n"
+    print(msg)
+
+    try:
+
+        for line in sys.stdin:
+            if line.strip() == 'EOF':
+                break
+            if not line.strip():
+                continue
+
+            punch_card.process_input(line.upper())
+    
+    except KeyboardInterrupt:
+        print('\nBYE')
